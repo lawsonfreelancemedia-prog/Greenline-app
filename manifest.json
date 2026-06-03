@@ -1,0 +1,26 @@
+{
+  "name": "Greenline Equipment Viewer",
+  "short_name": "Greenline",
+  "description": "Interactive 3D equipment viewer, brochures and videos for Greenline Feeding Systems",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#040A06",
+  "theme_color": "#040A06",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": []
+}
