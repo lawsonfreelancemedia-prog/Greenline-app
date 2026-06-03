@@ -2492,10 +2492,13 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 // ── RENDERER ──────────────────────────────────────────────────────────────
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Disable antialias on mobile — major GPU saving on iOS
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, preserveDrawingBuffer: true });
+// Cap pixel ratio: 1.5 on mobile (vs 2) — ~44% fewer pixels to render
+renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -2980,8 +2983,30 @@ window.addEventListener('resize', resize);
 resize();
 
 // ── ANIMATE ───────────────────────────────────────────────────────────────
+// Idle-aware loop: stops rendering after 3s of no interaction (saves battery/GPU on iOS)
+let _rafId = null;
+let _lastActivity = Date.now();
+let _isRendering = false;
+
+function scheduleRender() {
+  _lastActivity = Date.now();
+  if (!_isRendering) startRenderLoop();
+}
+
+function startRenderLoop() {
+  if (_isRendering) return;
+  _isRendering = true;
+  animate();
+}
+
 function animate() {
-  requestAnimationFrame(animate);
+  const idle = Date.now() - _lastActivity > 3000;
+  if (idle && explodeDir === 0 && !controls.autoRotate) {
+    _isRendering = false;
+    _rafId = null;
+    return; // stop loop — resume on next interaction
+  }
+  _rafId = requestAnimationFrame(animate);
   if (explodeDir !== 0 && meshOrigPositions.length) {
     explodeT = Math.max(0, Math.min(1, explodeT + explodeDir * 0.02));
     applyExplode(explodeT);
@@ -2990,6 +3015,12 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 }
+
+// Wake the loop on any user interaction
+['pointerdown','pointermove','wheel','touchstart','touchmove','keydown'].forEach(evt =>
+  document.addEventListener(evt, scheduleRender, { passive: true })
+);
+
 animate();
 
 // ── WEBGL CONTEXT LOSS HANDLING ───────────────────────────────────────────
@@ -3089,6 +3120,7 @@ function setRotate(on) {
   controls.autoRotate = on;
   document.getElementById('t-rotate').checked = on;
   document.getElementById('qbt-rotate').classList.toggle('on', on);
+  if (on) scheduleRender(); // wake loop if it went idle
 }
 document.getElementById('t-rotate').addEventListener('change', e => setRotate(e.target.checked));
 document.getElementById('qbt-rotate').addEventListener('click', () => setRotate(!rotateOn));
